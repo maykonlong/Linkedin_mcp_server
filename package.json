@@ -1,0 +1,21 @@
+{
+  "name": "linkedin-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server para automação do LinkedIn via Playwright",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "node build/index.js",
+    "login": "npx tsx scripts/login.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "playwright": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "typescript": "latest"
+  }
+}

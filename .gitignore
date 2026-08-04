@@ -1,0 +1,7 @@
+node_modules/
+build/
+sessions/
+conf.ini
+.env
+*.log
+*.html
