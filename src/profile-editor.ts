@@ -1,5 +1,8 @@
 import { Page } from 'playwright';
-import { Experience, Education } from './profile-reader.js';
+import { Experience, Education, Certification } from './profile-reader.js';
+import { SELECTORS } from './utils/selectors.js';
+import { logger } from './utils/logger.js';
+import { withRetry } from './utils/retry.js';
 
 export class ProfileEditor {
   private page: Page;
@@ -11,7 +14,7 @@ export class ProfileEditor {
   }
 
   async updateHeadline(headline: string): Promise<boolean> {
-    try {
+    return withRetry(async () => {
       const cleanUrl = this.profileUrl.replace(/\/$/, '');
       await this.page.goto(`${cleanUrl}/edit/intro/`, {
         waitUntil: 'domcontentloaded',
@@ -45,65 +48,68 @@ export class ProfileEditor {
         await this.page.fill('input[name="headline"], #headline', headline);
       }
 
-      await this.page.click('button[type="submit"], button:has-text("Save"), button:has-text("Salvar")');
+      await this.page.click(SELECTORS.MODAL.SAVE_BTN);
       await this.page.waitForTimeout(2000);
 
+      logger.info(`Headline updated successfully.`);
       return true;
-    } catch (error) {
-      console.error('Error updating headline:', error);
+    }, { label: 'updateHeadline', maxAttempts: 2 }).catch(error => {
+      logger.error('Error updating headline:', error);
       return false;
-    }
+    });
   }
 
   async updateAbout(about: string): Promise<boolean> {
-    try {
+    return withRetry(async () => {
       await this.page.goto(`${this.profileUrl}/edit/forms/summary/`, {
         waitUntil: 'domcontentloaded',
         timeout: 30000,
       });
 
-      await this.page.waitForSelector('textarea[id*="summary"], textarea[name*="summary"]', {
+      await this.page.waitForSelector(SELECTORS.PROFILE.ABOUT.TEXTAREA, {
         timeout: 10000,
       });
 
-      await this.page.fill('textarea[id*="summary"], textarea[name*="summary"]', about);
-      await this.page.click('button[type="submit"], button:has-text("Save")');
+      await this.page.fill(SELECTORS.PROFILE.ABOUT.TEXTAREA, about);
+      await this.page.click(SELECTORS.MODAL.SAVE_BTN);
       await this.page.waitForTimeout(2000);
 
+      logger.info(`About updated successfully.`);
       return true;
-    } catch (error) {
-      console.error('Error updating about:', error);
+    }, { label: 'updateAbout', maxAttempts: 2 }).catch(error => {
+      logger.error('Error updating about:', error);
       return false;
-    }
+    });
   }
 
   async addExperience(exp: Experience): Promise<boolean> {
-    try {
-      await this.page.goto(`${this.profileUrl}/edit/forms/position/new/`, {
+    return withRetry(async () => {
+      await this.page.goto(`${this.profileUrl}${SELECTORS.PROFILE.EXPERIENCE.FORM_URL}`, {
         waitUntil: 'domcontentloaded', timeout: 30000
       });
 
-      await this.page.fill('input[name="title"]', exp.title);
-      await this.page.fill('input[name="companyName"]', exp.company);
-      if (exp.location) await this.page.fill('input[name="location"]', exp.location);
-      if (exp.description) await this.page.fill('textarea[name="description"]', exp.description);
+      await this.page.fill(SELECTORS.PROFILE.EXPERIENCE.TITLE_INPUT, exp.title);
+      await this.page.fill(SELECTORS.PROFILE.EXPERIENCE.COMPANY_INPUT, exp.company);
+      if (exp.location) await this.page.fill(SELECTORS.PROFILE.EXPERIENCE.LOCATION_INPUT, exp.location);
+      if (exp.description) await this.page.fill(SELECTORS.PROFILE.EXPERIENCE.DESC_TEXTAREA, exp.description);
 
-      if (exp.startDate) await this.page.fill('input[name="timePeriodStartDate"]', exp.startDate);
+      if (exp.startDate) await this.page.fill(SELECTORS.PROFILE.EXPERIENCE.START_DATE, exp.startDate);
       if (exp.endDate) {
-        await this.page.fill('input[name="timePeriodEndDate"]', exp.endDate);
+        await this.page.fill(SELECTORS.PROFILE.EXPERIENCE.END_DATE, exp.endDate);
       } else {
-        const currentCheckbox = await this.page.$('input[name="currentJob"]');
+        const currentCheckbox = await this.page.$(SELECTORS.PROFILE.EXPERIENCE.CURRENT_JOB_CHECK);
         if (currentCheckbox) await currentCheckbox.check();
       }
 
-      await this.page.click('button[type="submit"], button:has-text("Save")');
+      await this.page.click(SELECTORS.MODAL.SAVE_BTN);
       await this.page.waitForTimeout(2000);
 
+      logger.info(`Experience added successfully: ${exp.title}`);
       return true;
-    } catch (error) {
-      console.error('Error adding experience:', error);
+    }, { label: 'addExperience', maxAttempts: 2 }).catch(error => {
+      logger.error('Error adding experience:', error);
       return false;
-    }
+    });
   }
 
   async addEducation(edu: Education): Promise<boolean> {

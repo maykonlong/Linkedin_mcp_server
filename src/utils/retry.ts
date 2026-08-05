@@ -1,3 +1,5 @@
+import { logger } from './logger.js';
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: { maxAttempts?: number; baseDelay?: number; label?: string } = {}
@@ -8,13 +10,13 @@ export async function withRetry<T>(
       return await fn();
     } catch (error: any) {
       if (attempt === maxAttempts) {
-        console.error(`[Retry Error] ${label} falhou definitivamente na tentativa ${maxAttempts}/${maxAttempts}: ${error.message}`);
+        logger.error(`[Retry] ${label} falhou definitivamente na tentativa ${maxAttempts}/${maxAttempts}: ${error.message}`);
         throw error;
       }
       const delay = baseDelay * Math.pow(2, attempt - 1);
-      console.warn(`[Retry Warning] ${label} tentativa ${attempt}/${maxAttempts} falhou. Tentando novamente em ${delay}ms...`);
+      logger.warn(`[Retry] ${label} tentativa ${attempt}/${maxAttempts} falhou. Tentando novamente em ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
-  throw new Error(`[Retry Error] Excedido limite de tentativas para ${label}`);
+  throw new Error(`[Retry] Excedido limite de tentativas para ${label}`);
 }
