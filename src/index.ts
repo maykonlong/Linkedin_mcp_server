@@ -219,6 +219,32 @@ class LinkedInMcpServer {
           },
         },
         {
+          name: 'linkedin_add_secondary_language',
+          description: 'Adiciona um idioma secundário ao perfil do LinkedIn.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              languageValue: {
+                type: 'string',
+                description: 'Valor do idioma (ex: "en_US" para Inglês, "es_ES" para Espanhol)',
+              },
+              firstName: {
+                type: 'string',
+                description: 'Primeiro nome',
+              },
+              lastName: {
+                type: 'string',
+                description: 'Sobrenome',
+              },
+              headline: {
+                type: 'string',
+                description: 'Título/Headline traduzido para o novo idioma',
+              },
+            },
+            required: ['languageValue', 'firstName', 'lastName', 'headline'],
+          },
+        },
+        {
           name: 'linkedin_remove_skill',
           description: 'Remove uma competência do perfil.',
           inputSchema: {
@@ -415,6 +441,22 @@ class LinkedInMcpServer {
           }
 
 
+
+          case 'linkedin_add_skill': {
+            const { skill } = request.params.arguments as any;
+            const success = await this.linkedin.addSkill(skill);
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ success, message: success ? 'Habilidade adicionada com sucesso' : 'Erro ao adicionar habilidade' }) }],
+            };
+          }
+
+          case 'linkedin_add_secondary_language': {
+            const { languageValue, firstName, lastName, headline } = request.params.arguments as any;
+            const success = await this.linkedin.addSecondaryLanguage(languageValue, firstName, lastName, headline);
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ success, message: success ? 'Idioma adicionado com sucesso' : 'Erro ao adicionar idioma' }) }],
+            };
+          }
 
           case 'linkedin_remove_skill': {
             const { skill } = request.params.arguments as any;

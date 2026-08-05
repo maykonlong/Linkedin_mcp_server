@@ -229,6 +229,74 @@ export class ProfileEditor {
     }
   }
 
+  async addSecondaryLanguage(languageValue: string, firstName: string, lastName: string, headline: string): Promise<boolean> {
+    try {
+      await this.page.goto(`${this.profileUrl}/edit/secondary-language/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(4000);
+
+      // Clicar em "+ Adicionar idioma" se ele existir (quando já tem idiomas configurados)
+      const clickedAdd = await this.page.evaluate(() => {
+        const addSvg = document.querySelector('svg[id="add-medium"]');
+        if (addSvg) {
+          const btn = addSvg.closest('button') || addSvg.closest('a') || addSvg.parentElement;
+          if (btn) {
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (clickedAdd) {
+        await this.page.waitForTimeout(3000);
+      }
+
+      // Selecionar idioma
+      const selectEl = await this.page.waitForSelector('select', { timeout: 10000 });
+      await selectEl.selectOption(languageValue);
+      await this.page.waitForTimeout(2000);
+
+      // Preencher nome, sobrenome e headline (exigido pelo LinkedIn para o novo idioma)
+      const inputs = await this.page.$$('input[type="text"]:visible');
+      if (inputs.length >= 2) {
+        await inputs[0].fill('');
+        await inputs[0].fill(firstName);
+        
+        await inputs[1].fill('');
+        await inputs[1].fill(lastName);
+      }
+
+      const textarea = await this.page.$('textarea');
+      if (textarea) {
+        await textarea.fill('');
+        await textarea.fill(headline);
+      }
+      
+      await this.page.waitForTimeout(1000);
+
+      // Clicar em Salvar
+      const saveBtns = await this.page.$$('button:has-text("Salvar"), button:has-text("Save")');
+      const saveBtn = saveBtns[saveBtns.length - 1];
+      if (saveBtn) {
+        await saveBtn.click();
+      }
+
+      await this.page.waitForTimeout(3000);
+
+      // Modal de Sucesso "Concluído"
+      const doneBtns = await this.page.$$('button:has-text("Concluído"), button:has-text("Done")');
+      if (doneBtns.length > 0) {
+        await doneBtns[doneBtns.length - 1].click();
+      }
+
+      await this.page.waitForTimeout(2000);
+      return true;
+    } catch (error) {
+      console.error('Error adding secondary language:', error);
+      return false;
+    }
+  }
+
   async removeSkill(skillName: string): Promise<boolean> {
     try {
       await this.page.goto(`${this.profileUrl}/details/skills/`, { waitUntil: 'domcontentloaded', timeout: 30000 });

@@ -143,6 +143,11 @@ export class LinkedInAutomation {
     return await this.editor.addSkill(skill);
   }
 
+  async addSecondaryLanguage(languageValue: string, firstName: string, lastName: string, headline: string): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.addSecondaryLanguage(languageValue, firstName, lastName, headline);
+  }
+
   async removeSkill(skillName: string): Promise<boolean> {
     if (!this.editor) throw new Error('Browser não inicializado');
     return await this.editor.removeSkill(skillName);
