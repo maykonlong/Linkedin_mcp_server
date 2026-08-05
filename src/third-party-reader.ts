@@ -259,6 +259,32 @@ export class ThirdPartyReader {
                 continue;
               }
 
+              let location = '';
+              const potLoc = expLines[j] || '';
+              if (potLoc && potLoc.length < 50 && !potLoc.includes('·') && !potLoc.includes('me ajudou a conseguir')) { location = potLoc; j++; }
+
+              // Capture description lines until we hit another date line (which means a new experience) or footer
+              let descriptionLines = [];
+              while (j < expLines.length) {
+                const peek = expLines[j];
+                if (FOOTER_MARKERS.some(f => peek.includes(f))) break;
+                // If we see a date line ahead, it means we've hit the next experience block
+                const peekNext = expLines[j + 1] || '';
+                const peekNextNext = expLines[j + 2] || '';
+                const isNextDate = (peekNext.includes('·') && (/\d{4}/.test(peekNext) || peekNext.includes('Presente') || peekNext.includes('Present')));
+                const isNextNextDate = (peekNextNext.includes('·') && (/\d{4}/.test(peekNextNext) || peekNextNext.includes('Presente') || peekNextNext.includes('Present')));
+                
+                if (isNextDate || isNextNextDate) {
+                  // We reached the title of the next experience, stop collecting description
+                  break; 
+                }
+
+                if (!peek.includes('me ajudou a conseguir') && !peek.includes('helped me get') && !peek.includes('O LinkedIn me ajudou')) {
+                  descriptionLines.push(peek);
+                }
+                j++;
+              }
+
               const parts = dateLine.split('·')[0].split('–').map(s => s.trim());
               profile.experience.push({
                 title,
@@ -266,8 +292,8 @@ export class ThirdPartyReader {
                 startDate: parts[0] || '',
                 endDate: parts[1] || null,
                 duration: dateLine.split('·')[1]?.trim() || '',
-                location: '',
-                description: '',
+                location,
+                description: descriptionLines.join('\n').trim(),
               });
               i = j;
               continue;
