@@ -116,21 +116,20 @@ try {
   await page.waitForTimeout(2000);
 
   // PASSO 5: Marcar "Definir como idioma principal"
-  // checkbox: input.eef3c9ac[type="checkbox"]
-  // label:    label.bc44a536._955b4555._30782d83._4ef8dd46._021da188
   console.log('[PASSO 5] Marcando "Definir como idioma principal"...');
   const primaryResult = await page.evaluate(() => {
-    // Prioridade 1: clicar no label (que ativa o checkbox visualmente)
-    const label = document.querySelector('label.bc44a536._955b4555._30782d83._4ef8dd46._021da188');
-    if (label) {
-      label.click();
-      return { done: true, via: 'label.bc44a536' };
-    }
-    // Fallback: marcar o checkbox diretamente pela classe
-    const checkbox = document.querySelector('input.eef3c9ac[type="checkbox"]');
+    // Novas classes fornecidas
+    const label1 = document.querySelector('label._0a0a1843.acde202b._554d7eb5');
+    const label2 = document.querySelector('label.bc44a536._955b4555._30782d83');
+    
+    if (label1) { label1.click(); return { done: true, via: 'label._0a0a1843' }; }
+    if (label2) { label2.click(); return { done: true, via: 'label.bc44a536' }; }
+    
+    // Fallback: marcar qualquer checkbox disponível no modal
+    const checkbox = document.querySelector('input[type="checkbox"]');
     if (checkbox && !checkbox.checked) {
       checkbox.click();
-      return { done: true, via: 'input.eef3c9ac' };
+      return { done: true, via: 'input[type="checkbox"] fallback' };
     }
     if (checkbox?.checked) {
       return { done: true, via: 'já estava marcado' };
