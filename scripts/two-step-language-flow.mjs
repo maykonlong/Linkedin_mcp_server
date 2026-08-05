@@ -227,8 +227,43 @@ try {
       }
     }
   }
+  
+  await page.waitForTimeout(3000);
 
-  await page.waitForTimeout(6000);
+  // PASSO 10: Clicar no botão "Concluído" (modal de sucesso)
+  console.log('[PASSO 10] Procurando botão "Concluído"...');
+  const doneResult = await page.evaluate(() => {
+    // Span externo: f22b271e _9a39c7cc f7336c2f ae2de9e4 ...
+    const outerSpan = document.querySelector('span.f22b271e._9a39c7cc');
+    if (outerSpan) {
+      const btn = outerSpan.closest('button') || outerSpan.parentElement;
+      btn?.click();
+      return { clicked: true, via: 'span.f22b271e' };
+    }
+    // Span interno: _04113bfd f1d15dca _38d7fd63 ...
+    const innerSpans = Array.from(document.querySelectorAll('span._04113bfd'));
+    const doneSpan = innerSpans.find(s => s.textContent.trim() === 'Concluído' || s.textContent.trim() === 'Done');
+    if (doneSpan) {
+      const btn = doneSpan.closest('button') || doneSpan.parentElement;
+      btn?.click();
+      return { clicked: true, via: `span._04113bfd "${doneSpan.textContent.trim()}"` };
+    }
+    return { clicked: false };
+  });
+
+  if (doneResult.clicked) {
+    console.log(`✅ [VALIDADO] Botão Concluído clicado via ${doneResult.via}!`);
+  } else {
+    const doneBtn = await page.$('button:has-text("Concluído"), button:has-text("Done")');
+    if (doneBtn) {
+      await doneBtn.click();
+      console.log('✅ [VALIDADO] Botão Concluído clicado via has-text!');
+    } else {
+      console.log('[INFO] Botão Concluído não encontrado (pode ter fechado automaticamente).');
+    }
+  }
+
+  await page.waitForTimeout(4000);
   console.log('🎉 PERFIL EM PORTUGUÊS (PT-BR) DEFINIDO COMO IDIOMA PRIMÁRIO!');
 
 } catch (err) {
