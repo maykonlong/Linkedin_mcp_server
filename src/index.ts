@@ -223,7 +223,7 @@ class LinkedInMcpServer {
         },
         {
           name: 'linkedin_analyze_profile_seo',
-          description: 'Analisa o perfil do LinkedIn e gera um relatório com pontuação de atratividade (0-100) e recomendações para atrair recrutadores.',
+          description: 'Analisa o perfil do LinkedIn (Algoritmo 2026) e gera relatório holístico (0-100) dividido em SEO, Visibilidade, Qualidade de Conteúdo, Engajamento, Rede, Comportamento, Distribuição e Oportunidades.',
           inputSchema: {
             type: 'object',
             properties: {},
