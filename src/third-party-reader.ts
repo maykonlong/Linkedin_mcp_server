@@ -50,7 +50,11 @@ export interface ThirdPartyProfile {
   scrapedAt: string;
 }
 
-const FOOTER_MARKERS = ['Acessibilidade', 'Soluções de Talentos', 'LinkedIn Corporation', 'Central de Ajuda', 'Termos e Privacidade'];
+const FOOTER_MARKERS = [
+  'Sobre', 'Acessibilidade', 'Central de Ajuda', 'Privacidade',
+  'LinkedIn Corporation', 'Idioma do perfil', 'Exibido apenas a você', 
+  'Quem seus visitantes também viram', 'Pessoas que você talvez conheça'
+];
 const SKIP_CATEGORIES = new Set(['Todos', 'All', 'Conhecimento do setor', 'Industry knowledge',
   'Ferramentas e tecnologias', 'Tools & technologies', 'Competências interpessoais',
   'Interpersonal skills', 'Idiomas', 'Languages', 'Idioma do perfil', 'Profile language']);
@@ -315,7 +319,7 @@ export class ThirdPartyReader {
       if (!eduUrl.includes('/authwall') && !eduUrl.includes('/login')) {
         const rawText = await this.page.evaluate(() => document.body.innerText);
         const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        const startIdx = lines.findIndex(l => l === 'Educação' || l === 'Education');
+        const startIdx = lines.findIndex(l => l === 'Educação' || l === 'Education' || l === 'Formação acadêmica');
 
         if (startIdx >= 0) {
           const eduLines = lines.slice(startIdx + 1);
@@ -330,6 +334,9 @@ export class ThirdPartyReader {
 
             const yearPattern = /\d{4}/;
             const looksLikeYear = yearPattern.test(nnext);
+
+            const skipStrings = ['Nível de formação', 'Atividades e grupos', 'Nota:'];
+            if (skipStrings.some(s => l.startsWith(s))) { i++; continue; }
 
             if (l.length > 2 && l.length < 120 && !yearPattern.test(l) && !l.includes('·')) {
               const school = l;
