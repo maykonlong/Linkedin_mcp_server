@@ -89,17 +89,17 @@ try {
 
   console.log('[PASSO 4] Preenchendo Datas...');
   // Data Início
-  const startMonth = await page.$('select[aria-label="Mês de Data de início"]');
+  const startMonth = await page.$('div[aria-label="Mês de Data de início"] select');
   if (startMonth) await startMonth.selectOption(EDU_DATA.mesInicio);
   
-  const startYear = await page.$('select[aria-label="Ano de Data de início"]');
+  const startYear = await page.$('div[aria-label="Ano de Data de início"] select');
   if (startYear) await startYear.selectOption(EDU_DATA.anoInicio);
 
   // Data Fim
-  const endMonth = await page.$('select[aria-label="Mês de Data de término (ou prevista)"]');
+  const endMonth = await page.$('div[aria-label="Mês de Data de término (ou prevista)"] select');
   if (endMonth) await endMonth.selectOption(EDU_DATA.mesFim);
   
-  const endYear = await page.$('select[aria-label="Ano de Data de término (ou prevista)"]');
+  const endYear = await page.$('div[aria-label="Ano de Data de término (ou prevista)"] select');
   if (endYear) await endYear.selectOption(EDU_DATA.anoFim);
 
   console.log('[PASSO 5] Preenchendo campos complementares (Nota, Atividades, Descrição)...');
