@@ -109,6 +109,88 @@ export class ProfileEditor {
     }
   }
 
+  async addCertification(cert: any): Promise<boolean> {
+    try {
+      await this.page.goto(`${this.profileUrl}/details/certifications/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(3000);
+
+      const clicked = await this.page.evaluate(() => {
+        const addSvgs = Array.from(document.querySelectorAll('svg[id="add-medium"]'));
+        if (addSvgs[0]) {
+          const btn = addSvgs[0].closest('button') || addSvgs[0].closest('a');
+          if (btn) {
+            btn.click();
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (!clicked) {
+        await this.page.goto(`${this.profileUrl}/edit/forms/certification/new/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      }
+
+      await this.page.waitForSelector('dialog, div[role="dialog"]', { timeout: 10000 });
+      await this.page.waitForTimeout(2000);
+
+      const nomeInput = await this.page.$('input[id*="custom-typeahead"], input[aria-label="Nome*"]');
+      if (nomeInput) {
+        await nomeInput.click();
+        await this.page.keyboard.type(cert.name, { delay: 30 });
+        await this.page.waitForTimeout(1000);
+        await this.page.keyboard.press('Escape');
+      }
+
+      const orgInput = await this.page.$('input[aria-label="Organização emissora*"]');
+      if (orgInput) {
+        await orgInput.click();
+        await this.page.keyboard.type(cert.issuer, { delay: 30 });
+        await this.page.waitForTimeout(1500);
+        const orgDropdown = await this.page.$$('div[role="listbox"] div[role="option"]');
+        if (orgDropdown.length > 0) {
+          await orgDropdown[0].click();
+        } else {
+          await this.page.keyboard.press('Escape');
+        }
+      }
+
+      const startMonth = await this.page.$('div[aria-label*="Mês"] select');
+      if (startMonth && cert.issueMonth) await startMonth.selectOption(cert.issueMonth);
+      
+      const startYear = await this.page.$('div[aria-label*="Ano"] select');
+      if (startYear && cert.issueYear) await startYear.selectOption(cert.issueYear);
+
+      if (cert.credentialId) {
+        const codigoLabelHandle = await this.page.$('label:has-text("Código da credencial")');
+        if (codigoLabelHandle) {
+          const forAttr = await codigoLabelHandle.getAttribute('for');
+          if (forAttr) await this.page.fill(`input[id="${forAttr}"]`, cert.credentialId);
+        }
+      }
+      
+      if (cert.credentialUrl) {
+        const urlLabelHandle = await this.page.$('label:has-text("URL da credencial")');
+        if (urlLabelHandle) {
+          const forAttr = await urlLabelHandle.getAttribute('for');
+          if (forAttr) await this.page.fill(`input[id="${forAttr}"]`, cert.credentialUrl);
+        }
+      }
+
+      const saveBtns = await this.page.$$('dialog button:has-text("Salvar"), div[role="dialog"] button:has-text("Salvar")');
+      const saveBtn = saveBtns[saveBtns.length - 1];
+      
+      if (saveBtn) {
+        await saveBtn.click();
+      }
+
+      await this.page.waitForTimeout(3000);
+      return true;
+    } catch (error) {
+      console.error('Error adding certification:', error);
+      return false;
+    }
+  }
+
   async updateCurrentPosition(title: string, company: string, description: string): Promise<boolean> {
     try {
       const currentExpBtn = await this.page.$('#experience ~ div a[href*="/edit/forms/position/"]');
@@ -143,6 +225,79 @@ export class ProfileEditor {
       return true;
     } catch (error) {
       console.error('Error adding skill:', error);
+      return false;
+    }
+  }
+
+  async removeSkill(skillName: string): Promise<boolean> {
+    try {
+      await this.page.goto(`${this.profileUrl}/details/skills/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(4000);
+
+      const editButtons = await this.page.$$(`a[aria-label*="Editar ${skillName}"]`);
+      if (editButtons.length === 0) return false;
+
+      await editButtons[0].click();
+      await this.page.waitForTimeout(3000);
+
+      const deleteBtn = await this.page.$('button:has-text("Exclua a competência"), button:has-text("Excluir")');
+      if (!deleteBtn) {
+        await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await this.page.waitForTimeout(1000);
+        const retryDelete = await this.page.$('button:has-text("Exclua a competência"), button:has-text("Excluir")');
+        if(retryDelete) await retryDelete.click();
+        else return false;
+      } else {
+        await deleteBtn.click();
+      }
+
+      await this.page.waitForTimeout(2000);
+      
+      const confirmDeleteBtn = await this.page.$$('dialog button:has-text("Excluir"), div[role="dialog"] button:has-text("Excluir")');
+      if (confirmDeleteBtn.length > 0) {
+        await confirmDeleteBtn[confirmDeleteBtn.length - 1].click();
+      }
+
+      await this.page.waitForTimeout(3000);
+      return true;
+    } catch (error) {
+      console.error('Error removing skill:', error);
+      return false;
+    }
+  }
+
+  async linkSkill(skillName: string, targetExperience: string): Promise<boolean> {
+    try {
+      await this.page.goto(`${this.profileUrl}/details/skills/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(4000);
+
+      const editButtons = await this.page.$$(`a[aria-label*="Editar ${skillName}"]`);
+      if (editButtons.length === 0) return false;
+
+      await editButtons[0].click();
+      await this.page.waitForTimeout(3000);
+
+      const checkboxContainer = await this.page.$(`div[role="checkbox"]:has(p:has-text("${targetExperience}"))`);
+      if (checkboxContainer) {
+          const isChecked = await checkboxContainer.getAttribute('aria-checked');
+          if (isChecked === 'false') {
+              await checkboxContainer.click();
+              await this.page.waitForTimeout(1000);
+          }
+      } else {
+          return false;
+      }
+
+      const saveBtns = await this.page.$$('button:has-text("Salvar")');
+      const saveBtn = saveBtns[saveBtns.length - 1];
+      if (saveBtn) {
+        await saveBtn.click();
+      }
+
+      await this.page.waitForTimeout(3000);
+      return true;
+    } catch (error) {
+      console.error('Error linking skill:', error);
       return false;
     }
   }

@@ -1,10 +1,10 @@
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import fs from 'fs';
 import { SessionManager } from './session-manager.js';
-import { ProfileReader, LinkedInProfile, Experience, Education } from './profile-reader.js';
+import { ProfileReader, LinkedInProfile, Experience, Education, Certification } from './profile-reader.js';
 import { ProfileEditor } from './profile-editor.js';
 
-export { LinkedInProfile, Experience, Education };
+export { LinkedInProfile, Experience, Education, Certification };
 
 export class LinkedInAutomation {
   private browser: Browser | null = null;
@@ -128,6 +128,11 @@ export class LinkedInAutomation {
     return await this.editor.addEducation(edu);
   }
 
+  async addCertification(cert: Certification): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.addCertification(cert);
+  }
+
   async updateCurrentPosition(title: string, company: string, description: string): Promise<boolean> {
     if (!this.editor) throw new Error('Browser não inicializado');
     return await this.editor.updateCurrentPosition(title, company, description);
@@ -136,6 +141,16 @@ export class LinkedInAutomation {
   async addSkill(skill: string): Promise<boolean> {
     if (!this.editor) throw new Error('Browser não inicializado');
     return await this.editor.addSkill(skill);
+  }
+
+  async removeSkill(skillName: string): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.removeSkill(skillName);
+  }
+
+  async linkSkill(skillName: string, targetExperience: string): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.linkSkill(skillName, targetExperience);
   }
 
   async publishPost(content: string): Promise<boolean> {

@@ -27,6 +27,15 @@ export interface Education {
   endYear: string;
 }
 
+export interface Certification {
+  name: string;
+  issuer: string;
+  issueMonth: string;
+  issueYear: string;
+  credentialId?: string;
+  credentialUrl?: string;
+}
+
 export class ProfileReader {
   private page: Page;
   private profileUrl: string;

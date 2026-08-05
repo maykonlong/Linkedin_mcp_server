@@ -171,6 +171,40 @@ class LinkedInMcpServer {
           },
         },
         {
+          name: 'linkedin_add_certification',
+          description: 'Adiciona uma licença ou certificado ao perfil do LinkedIn.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'Nome da certificação/licença (ex: "AWS Certified Solutions Architect")',
+              },
+              issuer: {
+                type: 'string',
+                description: 'Organização emissora (ex: "Amazon Web Services")',
+              },
+              issueMonth: {
+                type: 'string',
+                description: 'Mês de emissão (ex: "1" para Janeiro)',
+              },
+              issueYear: {
+                type: 'string',
+                description: 'Ano de emissão (ex: "2024")',
+              },
+              credentialId: {
+                type: 'string',
+                description: 'Código/ID da credencial (opcional)',
+              },
+              credentialUrl: {
+                type: 'string',
+                description: 'URL da credencial (opcional)',
+              },
+            },
+            required: ['name', 'issuer', 'issueMonth', 'issueYear'],
+          },
+        },
+        {
           name: 'linkedin_add_skill',
           description: 'Adiciona uma nova habilidade ao perfil.',
           inputSchema: {
@@ -178,10 +212,42 @@ class LinkedInMcpServer {
             properties: {
               skill: {
                 type: 'string',
-                description: 'Nome da habilidade (ex: "Python", "TypeScript")',
+                description: 'Nome da habilidade para adicionar.',
               },
             },
             required: ['skill'],
+          },
+        },
+        {
+          name: 'linkedin_remove_skill',
+          description: 'Remove uma competência do perfil.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              skill: {
+                type: 'string',
+                description: 'Nome exato da competência para remover.',
+              },
+            },
+            required: ['skill'],
+          },
+        },
+        {
+          name: 'linkedin_link_skill',
+          description: 'Vincula uma competência a uma experiência específica.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              skill: {
+                type: 'string',
+                description: 'Nome exato da competência (ex: "Playwright").',
+              },
+              targetExperience: {
+                type: 'string',
+                description: 'Texto exato da experiência alvo como aparece na lista de vínculo (ex: "Analista de Testes QA Jr na empresa C&M Software").',
+              },
+            },
+            required: ['skill', 'targetExperience'],
           },
         },
         {
@@ -344,12 +410,33 @@ class LinkedInMcpServer {
             };
             const success = await this.linkedin.addEducation(edu);
             return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({ success, message: success ? 'Formação adicionada com sucesso!' : 'Falha ao adicionar formação' }),
-                },
-              ],
+              content: [{ type: 'text', text: JSON.stringify({ success, message: success ? 'Formação adicionada com sucesso' : 'Erro ao adicionar formação' }) }],
+            };
+          }
+
+
+
+          case 'linkedin_remove_skill': {
+            const { skill } = request.params.arguments as any;
+            const success = await this.linkedin.removeSkill(skill);
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ success, message: success ? 'Competência removida com sucesso' : 'Erro ao remover competência' }) }],
+            };
+          }
+
+          case 'linkedin_link_skill': {
+            const { skill, targetExperience } = request.params.arguments as any;
+            const success = await this.linkedin.linkSkill(skill, targetExperience);
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ success, message: success ? 'Competência vinculada com sucesso' : 'Erro ao vincular competência' }) }],
+            };
+          }
+
+          case 'linkedin_add_certification': {
+            const { name, issuer, issueMonth, issueYear, credentialId, credentialUrl } = request.params.arguments as any;
+            const success = await this.linkedin.addCertification({ name, issuer, issueMonth, issueYear, credentialId, credentialUrl });
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ success, message: success ? 'Certificação adicionada com sucesso' : 'Erro ao adicionar certificação' }) }],
             };
           }
 
