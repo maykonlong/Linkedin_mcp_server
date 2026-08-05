@@ -73,19 +73,34 @@ try {
   }
   await page.waitForTimeout(3000);
 
-  // PASSO 3: Clicar no span "Add language" / "Adicionar idioma"
-  console.log('[PASSO 3] Clicando no botão "+ Adicionar idioma"...');
-  const addLangBtn = await page.waitForSelector(
-    'button:has-text("Adicionar idioma"), button:has-text("Add language")',
-    { timeout: 10000 }
-  ).catch(() => null);
+  // PASSO 3: Clicar no botão "+" (svg[id="add-medium"]) — seletor exato fornecido pelo usuário
+  // O SVG tem id="add-medium" (diferente do lápis que usa id="edit-medium")
+  // Span classe: _8afe7807 _49ff5183 _50d88983...
+  console.log('[PASSO 3] Clicando no botão "+ Adicionar idioma" via svg[id="add-medium"]...');
+  const addLangClicked = await page.evaluate(() => {
+    // Busca pelo SVG com id="add-medium" (ícone de + do Adicionar idioma)
+    const addSvg = document.querySelector('svg[id="add-medium"]');
+    if (addSvg) {
+      const btn = addSvg.closest('button') || addSvg.parentElement;
+      btn?.click();
+      return { clicked: true, via: 'svg[id=add-medium]' };
+    }
+    // Fallback: span com classe _8afe7807 (exata do snippet do usuário)
+    const span = document.querySelector('span._8afe7807');
+    if (span) {
+      const btn = span.closest('button') || span.parentElement;
+      btn?.click();
+      return { clicked: true, via: 'span._8afe7807' };
+    }
+    return { clicked: false };
+  });
 
-  if (addLangBtn) {
-    await addLangBtn.evaluate(el => el.click());
-    console.log('✅ [VALIDADO] Clicado em "+ Adicionar idioma"!');
+  if (addLangClicked.clicked) {
+    console.log(`✅ [VALIDADO] "+ Adicionar idioma" clicado via ${addLangClicked.via}!`);
     await page.waitForTimeout(3500);
   } else {
-    console.log('[INFO] Botão "Add language" não encontrado — modal já pode estar no passo do select.');
+    console.error('❌ [FALHA] Botão "+ Adicionar idioma" não encontrado!');
+    process.exit(1);
   }
 
   // PASSO 4: Selecionar pt_BR no select de idioma
@@ -95,28 +110,65 @@ try {
   console.log('✅ [VALIDADO] Português (pt_BR) selecionado!');
   await page.waitForTimeout(2000);
 
-  // PASSO 5: Marcar "Make primary language" (label for="«r2p»", classe _017b01a6)
-  console.log('[PASSO 5] Marcando Make primary language...');
-  await page.evaluate(() => {
-    const label = document.querySelector('label._017b01a6') || document.querySelector('label[for]');
-    label?.click();
-  }).catch(() => {});
-  console.log('✅ [VALIDADO] Make primary language clicado!');
-  await page.waitForTimeout(1000);
+  // PASSO 5: Marcar "Definir como idioma principal"
+  // checkbox: input.eef3c9ac[type="checkbox"]
+  // label:    label.bc44a536._955b4555._30782d83._4ef8dd46._021da188
+  console.log('[PASSO 5] Marcando "Definir como idioma principal"...');
+  const primaryResult = await page.evaluate(() => {
+    // Prioridade 1: clicar no label (que ativa o checkbox visualmente)
+    const label = document.querySelector('label.bc44a536._955b4555._30782d83._4ef8dd46._021da188');
+    if (label) {
+      label.click();
+      return { done: true, via: 'label.bc44a536' };
+    }
+    // Fallback: marcar o checkbox diretamente pela classe
+    const checkbox = document.querySelector('input.eef3c9ac[type="checkbox"]');
+    if (checkbox && !checkbox.checked) {
+      checkbox.click();
+      return { done: true, via: 'input.eef3c9ac' };
+    }
+    if (checkbox?.checked) {
+      return { done: true, via: 'já estava marcado' };
+    }
+    return { done: false };
+  });
 
-  // PASSO 6: First Name (input id="«r2q»", aria-describedby contém "r2q")
+  if (primaryResult.done) {
+    console.log(`✅ [VALIDADO] "Definir como idioma principal" marcado via ${primaryResult.via}!`);
+  } else {
+    console.log('[WARN] Checkbox não encontrado — continuando mesmo assim...');
+  }
+
+
+  // PASSO 6: First Name (primeiro input[type="text"] visível no modal)
   console.log('[PASSO 6] Preenchendo First Name...');
-  const inputs = await page.$$('input[type="text"]');
-  if (inputs[0]) { await inputs[0].fill(''); await inputs[0].fill(FIRST_NAME); }
-  console.log('✅ [VALIDADO] First Name preenchido!');
+  const inputs = await page.$$('input[type="text"]:visible, input.cbf56152');
+  if (inputs[0]) {
+    await inputs[0].scrollIntoViewIfNeeded();
+    await inputs[0].fill('');
+    await inputs[0].fill(FIRST_NAME);
+    console.log(`✅ [VALIDADO] First Name "${FIRST_NAME}" preenchido!`);
+  } else {
+    console.log('[WARN] First Name input não encontrado, tentando por índice global...');
+    const allInputs = await page.$$('input[type="text"]');
+    if (allInputs[0]) { await allInputs[0].fill(''); await allInputs[0].fill(FIRST_NAME); }
+  }
 
-  // PASSO 7: Last Name (input id="«r2r»")
+  // PASSO 7: Last Name (segundo input[type="text"] visível no modal)
   console.log('[PASSO 7] Preenchendo Last Name...');
   if (inputs[1]) {
     await inputs[1].scrollIntoViewIfNeeded();
     await inputs[1].fill('');
     await inputs[1].fill(LAST_NAME);
     console.log(`✅ [VALIDADO] Last Name "${LAST_NAME}" preenchido!`);
+  } else {
+    const allInputs = await page.$$('input[type="text"]');
+    if (allInputs[1]) {
+      await allInputs[1].scrollIntoViewIfNeeded();
+      await allInputs[1].fill('');
+      await allInputs[1].fill(LAST_NAME);
+      console.log(`✅ [VALIDADO] Last Name "${LAST_NAME}" preenchido via fallback!`);
+    }
   }
 
   // PASSO 8: Headline (textarea id="«r2s»", classe _0179a374)
