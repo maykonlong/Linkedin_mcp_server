@@ -182,25 +182,40 @@ try {
 
   await page.waitForTimeout(2000);
 
-  // PASSO 9: Clicar no Save (span classe _31325942)
-  console.log('[PASSO 9] Clicando no Save...');
-  const saveClicked = await page.evaluate(() => {
-    const spans = Array.from(document.querySelectorAll('span._31325942'));
-    // O "Save" é o último span com essa classe (depois do "Add language")
-    const saveSpan = spans[spans.length - 1];
+  // PASSO 9: Clicar no botão "Salvar"
+  // Span externo: _258a2dc3 e6a71372 (classe única do botão Salvar)
+  // Span interno: _8afe7807 com texto "Salvar"
+  console.log('[PASSO 9] Clicando no botão "Salvar"...');
+  const saveResult = await page.evaluate(() => {
+    // Prioridade 1: span externo com classe _258a2dc3.e6a71372 (único do botão Salvar)
+    const outerSpan = document.querySelector('span._258a2dc3.e6a71372');
+    if (outerSpan) {
+      const btn = outerSpan.closest('button') || outerSpan.parentElement;
+      btn?.click();
+      return { clicked: true, via: 'span._258a2dc3.e6a71372' };
+    }
+    // Prioridade 2: span interno _8afe7807 com texto "Salvar"
+    const innerSpans = Array.from(document.querySelectorAll('span._8afe7807'));
+    const saveSpan = innerSpans.find(s => s.textContent.trim() === 'Salvar' || s.textContent.trim() === 'Save');
     if (saveSpan) {
       const btn = saveSpan.closest('button') || saveSpan.parentElement;
       btn?.click();
-      return true;
+      return { clicked: true, via: `span._8afe7807 texto="${saveSpan.textContent.trim()}"` };
     }
-    return false;
+    return { clicked: false };
   });
 
-  if (saveClicked) {
-    console.log('✅ [VALIDADO] Botão Save clicado!');
+  if (saveResult.clicked) {
+    console.log(`✅ [VALIDADO] Botão Salvar clicado via ${saveResult.via}!`);
   } else {
-    await page.keyboard.press('Enter');
-    console.log('✅ [VALIDADO] Formulário enviado via Enter!');
+    console.log('[WARN] Botão Salvar não encontrado, tentando Playwright locator...');
+    const saveBtn = await page.getByRole('button', { name: /salvar|save/i }).last().catch(() => null);
+    if (saveBtn) {
+      await saveBtn.click();
+      console.log('✅ [VALIDADO] Botão Salvar clicado via getByRole!');
+    } else {
+      console.error('❌ [FALHA] Botão Salvar não encontrado!');
+    }
   }
 
   await page.waitForTimeout(6000);
