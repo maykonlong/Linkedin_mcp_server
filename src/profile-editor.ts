@@ -12,20 +12,40 @@ export class ProfileEditor {
 
   async updateHeadline(headline: string): Promise<boolean> {
     try {
-      await this.page.goto(`${this.profileUrl}/edit/forms/`, {
+      const cleanUrl = this.profileUrl.replace(/\/$/, '');
+      await this.page.goto(`${cleanUrl}/edit/intro/`, {
         waitUntil: 'domcontentloaded',
         timeout: 30000,
       });
 
-      await this.page.waitForSelector('input[name="headline"]', { timeout: 10000 }).catch(async () => {
+      // First, ensure we are on the edit page and the modal is open
+      await this.page.waitForSelector('input[name="headline"], div.tiptap.ProseMirror', { timeout: 5000 }).catch(async () => {
         const headlineBtn = await this.page.$(`button[aria-label*="headline" i], button:has-text("Headline")`);
         if (headlineBtn) await headlineBtn.click();
         const editIntroBtn = await this.page.$(`a[href*="/edit/forms/intro/"], button[aria-label*="Edit intro"]`);
         if (editIntroBtn) await editIntroBtn.click();
       });
 
-      await this.page.fill('input[name="headline"], #headline', headline);
-      await this.page.click('button[type="submit"], button:has-text("Save")');
+      // Wait again for the actual input to appear after clicking
+      await this.page.waitForSelector('input[name="headline"], div.tiptap.ProseMirror', { timeout: 10000 });
+
+      const tiptap = await this.page.$('div.tiptap.ProseMirror');
+      if (tiptap) {
+        // Clear via keyboard to be safe, fill doesn't always work on contenteditable
+        await tiptap.click();
+        await this.page.keyboard.down('Control');
+        await this.page.keyboard.press('A');
+        await this.page.keyboard.up('Control');
+        await this.page.keyboard.press('Backspace');
+        
+        // Type the new headline
+        await tiptap.type(headline, { delay: 50 });
+      } else {
+        // Fallback antigo
+        await this.page.fill('input[name="headline"], #headline', headline);
+      }
+
+      await this.page.click('button[type="submit"], button:has-text("Save"), button:has-text("Salvar")');
       await this.page.waitForTimeout(2000);
 
       return true;
