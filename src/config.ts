@@ -25,8 +25,8 @@ export function loadConfig(): LinkedInConfig {
     };
   }
 
-  // 2. Fallback para conf.ini
-  const configPath = resolve(__dirname, '..', 'conf.ini');
+  // 2. Fallback para .env (parse manual para evitar dependência do dotenv)
+  const configPath = resolve(__dirname, '..', '.env');
   if (!existsSync(configPath)) {
     throw new Error(`Configurações não encontradas em process.env nem em: ${configPath}`);
   }
@@ -35,7 +35,7 @@ export function loadConfig(): LinkedInConfig {
   try {
     content = readFileSync(configPath, 'utf-8');
   } catch (err: any) {
-    throw new Error(`Erro ao ler conf.ini: ${err.message}`);
+    throw new Error(`Erro ao ler .env: ${err.message}`);
   }
 
   const iniConfig: Record<string, string> = {};
@@ -50,9 +50,9 @@ export function loadConfig(): LinkedInConfig {
     }
   }
 
-  const email = envEmail || iniConfig.email;
-  const password = envPassword || iniConfig.password;
-  const profileUrl = envProfileUrl || iniConfig.profile_url;
+  const email = envEmail || iniConfig.email || iniConfig.LINKEDIN_EMAIL;
+  const password = envPassword || iniConfig.password || iniConfig.LINKEDIN_PASSWORD;
+  const profileUrl = envProfileUrl || iniConfig.profile_url || iniConfig.LINKEDIN_PROFILE_URL;
 
   if (!email || email === 'SEU_EMAIL_AQUI') {
     throw new Error('Email do LinkedIn não configurado');
