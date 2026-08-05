@@ -9,13 +9,19 @@ export { LinkedInProfile, Experience, Education, Certification };
 export class LinkedInAutomation {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
-  private page: Page | null = null;
+  private _page: Page | null = null;
   private profileUrl: string;
   private email: string;
   private password: string;
   private sessionManager: SessionManager;
   private reader: ProfileReader | null = null;
   private editor: ProfileEditor | null = null;
+
+  /** Expõe a page para uso por módulos externos (ex: ThirdPartyReader). Somente leitura. */
+  get page(): Page {
+    if (!this._page) throw new Error('Browser não inicializado. Chame init() primeiro.');
+    return this._page;
+  }
 
   constructor(profileUrl: string, email: string, password: string) {
     this.profileUrl = profileUrl;
@@ -56,22 +62,22 @@ export class LinkedInAutomation {
       });
     }
 
-    this.page = await this.context.newPage();
-    this.reader = new ProfileReader(this.page, this.profileUrl);
-    this.editor = new ProfileEditor(this.page, this.profileUrl);
+    this._page = await this.context.newPage();
+    this.reader = new ProfileReader(this._page, this.profileUrl);
+    this.editor = new ProfileEditor(this._page, this.profileUrl);
   }
 
   async login(): Promise<boolean> {
-    if (!this.page || !this.context) throw new Error('Browser não inicializado');
+    if (!this._page || !this.context) throw new Error('Browser não inicializado');
 
     try {
-      await this.page.goto('https://www.linkedin.com/feed/', {
+      await this._page.goto('https://www.linkedin.com/feed/', {
         waitUntil: 'domcontentloaded',
         timeout: 30000,
       });
 
-      await this.page.waitForTimeout(2000);
-      const currentUrl = this.page.url();
+      await this._page.waitForTimeout(2000);
+      const currentUrl = this._page.url();
 
       if (currentUrl.includes('/feed') && !currentUrl.includes('/login')) {
         await this.sessionManager.saveSession(this.context);
@@ -83,13 +89,13 @@ export class LinkedInAutomation {
         return false;
       }
 
-      await this.page.goto(this.profileUrl, {
+      await this._page.goto(this.profileUrl, {
         waitUntil: 'domcontentloaded',
         timeout: 15000,
       });
-      await this.page.waitForTimeout(2000);
+      await this._page.waitForTimeout(2000);
 
-      const profileUrl = this.page.url();
+      const profileUrl = this._page.url();
       if (profileUrl.includes('/in/') && !profileUrl.includes('/login')) {
         await this.sessionManager.saveSession(this.context);
         return true;
@@ -138,7 +144,22 @@ export class LinkedInAutomation {
     return await this.editor.updateCurrentPosition(title, company, description);
   }
 
-  async addSkill(skill: string): Promise<boolean> {
+  public async updateLocationAndIndustry(country: string, city: string, industry: string): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.updateLocationAndIndustry(country, city, industry);
+  }
+
+  public async updateContactInfo(phone?: string, phoneType?: 'HOME'|'WORK'|'MOBILE', address?: string): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.updateContactInfo(phone, phoneType, address);
+  }
+
+  public async updateOpenToWork(visibility?: 'RECRUITERS' | 'LOGGED_IN_MEMBERS', startDate?: 'ACTIVELY_SEEKING' | 'CASUALLY_BROWSING'): Promise<boolean> {
+    if (!this.editor) throw new Error('Browser não inicializado');
+    return await this.editor.updateOpenToWork(visibility, startDate);
+  }
+
+  public async addSkill(skill: string): Promise<boolean> {
     if (!this.editor) throw new Error('Browser não inicializado');
     return await this.editor.addSkill(skill);
   }

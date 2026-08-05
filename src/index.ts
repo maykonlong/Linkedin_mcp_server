@@ -93,6 +93,44 @@ class LinkedInMcpServer {
           },
         },
         {
+          name: 'linkedin_update_intro',
+          description: 'Atualiza as informações da introdução do perfil, incluindo Localidade (País/Região, Cidade) e Setor/Indústria.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              country: { type: 'string', description: 'País (ex: Brasil)' },
+              city: { type: 'string', description: 'Cidade (ex: São Paulo)' },
+              industry: { type: 'string', description: 'Setor de atuação (ex: Tecnologia da Informação)' },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'linkedin_update_contact_info',
+          description: 'Atualiza informações de contato (telefone, tipo de telefone, endereço).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              phone: { type: 'string', description: 'Número de telefone' },
+              phoneType: { type: 'string', description: 'Tipo de telefone: HOME, WORK ou MOBILE' },
+              address: { type: 'string', description: 'Endereço físico' },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'linkedin_update_open_to_work',
+          description: 'Atualiza configurações de Open to Work (Disponível para trabalho).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              visibility: { type: 'string', description: 'Quem pode ver: RECRUITERS ou LOGGED_IN_MEMBERS' },
+              startDate: { type: 'string', description: 'Data de início: ACTIVELY_SEEKING ou CASUALLY_BROWSING' },
+            },
+            required: [],
+          },
+        },
+        {
           name: 'linkedin_update_about',
           description: 'Atualiza a seção "Sobre" do perfil do LinkedIn.',
           inputSchema: {
@@ -387,6 +425,45 @@ class LinkedInMcpServer {
                 {
                   type: 'text',
                   text: JSON.stringify({ success, message: success ? 'Sobre atualizado com sucesso!' : 'Falha ao atualizar Sobre' }),
+                },
+              ],
+            };
+          }
+
+          case 'linkedin_update_intro': {
+            const { country, city, industry } = request.params.arguments as any;
+            const success = await this.linkedin.updateLocationAndIndustry(country, city, industry);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({ success, message: success ? 'Introdução atualizada com sucesso!' : 'Falha ao atualizar introdução' }),
+                },
+              ],
+            };
+          }
+
+          case 'linkedin_update_contact_info': {
+            const { phone, phoneType, address } = request.params.arguments as any;
+            const success = await this.linkedin.updateContactInfo(phone, phoneType, address);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({ success, message: success ? 'Informações de contato atualizadas com sucesso!' : 'Falha ao atualizar informações de contato' }),
+                },
+              ],
+            };
+          }
+
+          case 'linkedin_update_open_to_work': {
+            const { visibility, startDate } = request.params.arguments as any;
+            const success = await this.linkedin.updateOpenToWork(visibility, startDate);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({ success, message: success ? 'Open to Work atualizado com sucesso!' : 'Falha ao atualizar Open to Work' }),
                 },
               ],
             };

@@ -8,7 +8,9 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "start": "node build/index.js",
-    "login": "npx tsx scripts/login.ts"
+    "start:third-party": "node build/index-third-party.js",
+    "login": "npx tsx scripts/login.ts",
+    "login:session": "node scripts/login-session.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",

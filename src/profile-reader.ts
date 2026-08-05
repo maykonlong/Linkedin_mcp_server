@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
 
 export interface LinkedInProfile {
+  name: string;
   headline: string;
   about: string;
   location: string;
@@ -44,25 +45,15 @@ export class ProfileReader {
     this.page = page;
     this.profileUrl = profileUrl;
   }
-
   async getProfile(): Promise<LinkedInProfile> {
-    await this.page.goto(this.profileUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
+    const cleanUrl = this.profileUrl.replace(/\/$/, '');
 
+    // 1. Get Main Profile Data (Headline, About, Location)
+    await this.page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await this.page.waitForTimeout(3000);
-    await this.page.evaluate(async () => {
-      for (let i = 0; i < 8; i++) {
-        window.scrollBy(0, 600);
-        await new Promise((r) => setTimeout(r, 800));
-      }
-      window.scrollTo(0, 0);
-      await new Promise((r) => setTimeout(r, 1000));
-    });
-    await this.page.waitForTimeout(2000);
-
+    
     const profile: LinkedInProfile = {
+      name: '',
       headline: '',
       about: '',
       location: '',
@@ -73,150 +64,101 @@ export class ProfileReader {
     };
 
     try {
-      const fullText = await this.page.evaluate(() => document.body.innerText);
-      const allLines = fullText.split('\n').map((l: string) => l.trim());
-      const lines = allLines.filter((l: string) => l.length > 0);
-
-      const profileName = await this.page.evaluate(() => {
+      const name = await this.page.evaluate(() => {
         const h1 = document.querySelector('h1.text-heading-xlarge, h1');
         if (h1 && h1.textContent) return h1.textContent.trim();
-        const title = document.title;
-        if (title.includes('|')) return title.split('|')[0].trim();
-        return '';
+        return document.title.split('|')[0].trim();
       });
+      profile.name = name;
 
-      const nameIndex = profileName ? lines.findIndex((l: string) => l === profileName || (l.length > 3 && profileName.includes(l))) : -1;
-      if (nameIndex >= 0) {
-        let hl = lines[nameIndex + 1] || '';
-        if (['He/Him', 'She/Her', 'They/Them', 'Ele/Dele', 'Ela/Dela'].includes(hl)) {
-          hl = lines[nameIndex + 2] || '';
-        }
-        if (hl && !hl.includes('Recursos') && !hl.includes('Aprimorar') && !hl.includes('Adicionar')) {
-          profile.headline = hl;
-        } else {
-          const allNameIndices: number[] = [];
-          lines.forEach((l: string, i: number) => { if (l === profileName) allNameIndices.push(i); });
-          if (allNameIndices.length >= 1) {
-            const firstHl = lines[allNameIndices[0] + 1] || '';
-            if (firstHl && !['He/Him', 'She/Her', 'They/Them', 'Ele/Dele', 'Ela/Dela'].includes(firstHl)) {
-              profile.headline = firstHl;
-            } else {
-              profile.headline = lines[allNameIndices[0] + 2] || '';
-            }
-          }
-        }
+      const mainText = await this.page.evaluate(() => document.body.innerText);
+      const lines = mainText.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+      
+      const nameIdx = lines.findIndex(l => l === profile.name || (l.length > 3 && profile.name.includes(l)));
+      if (nameIdx >= 0) {
+        let hl = lines[nameIdx + 1] || '';
+        if (['He/Him', 'She/Her', 'They/Them', 'Ele/Dele', 'Ela/Dela'].includes(hl)) hl = lines[nameIdx + 2] || '';
+        if (hl && !hl.includes('Recursos') && !hl.includes('Aprimorar')) profile.headline = hl;
       }
 
-      const contatoIdx = lines.findIndex((l: string) => l === 'Dados de contato' || l === 'Contact info');
-      if (contatoIdx >= 2) {
-        const candidate = lines[contatoIdx - 2];
-        if (candidate && !candidate.includes('·') && candidate.length > 3) {
-          profile.location = candidate;
-        } else {
-          for (let i = contatoIdx - 1; i >= Math.max(0, contatoIdx - 5); i--) {
-            if (lines[i] && (lines[i].includes('Região') || lines[i].includes('Brasil') || lines[i].includes('Paulo') || lines[i].includes('State') || lines[i].includes('area'))) {
-              profile.location = lines[i].replace(/·/g, '').trim();
-              break;
-            }
-          }
-        }
-      }
-
+      const contatoIdx = lines.findIndex(l => l === 'Dados de contato' || l === 'Contact info');
+      if (contatoIdx >= 2) profile.location = lines[contatoIdx - 2];
+      
       if (contatoIdx >= 0 && lines.length > contatoIdx + 1) {
-        const empresa = lines[contatoIdx + 1];
-        if (empresa && !empresa.includes('500') && !empresa.includes('conex') && !empresa.includes('English') && !empresa.includes('connections')) {
-          profile.currentPosition = empresa;
-        }
+        const emp = lines[contatoIdx + 1];
+        if (emp && !emp.includes('500') && !emp.includes('conex')) profile.currentPosition = emp;
       }
 
-      const aboutStart = lines.findIndex((l: string) => l === 'Sobre' || l === 'About');
-      const aboutEnd = lines.findIndex((l: string, i: number) =>
-        i > aboutStart && (l === 'Atividades' || l === 'Activity' || l === 'Posts')
-      );
+      const aboutStart = lines.findIndex(l => l === 'Sobre' || l === 'About');
+      const aboutEnd = lines.findIndex((l, i) => i > aboutStart && (l === 'Atividades' || l === 'Activity' || l === 'Posts'));
       if (aboutStart >= 0 && aboutEnd > aboutStart) {
-        const aboutLines = lines.slice(aboutStart + 1, aboutEnd);
-        profile.about = aboutLines.join('\n').replace('… mais', '').replace('… more', '').replace('... more', '').trim();
+        profile.about = lines.slice(aboutStart + 1, aboutEnd).join('\n').replace(/… mais|… more/g, '').trim();
       }
 
-      const expHeader = lines.findIndex((l: string) => l === 'Experiência' || l === 'Experience');
-      if (expHeader >= 0) {
-        const nextSection = lines.findIndex((l: string, i: number) =>
-          i > expHeader &&
-          ['Formação acadêmica', 'Education', 'Licenças e certificados', 'Licenses & certifications', 'Competências', 'Skills'].includes(l)
-        );
-        const expLines = lines.slice(expHeader + 1, nextSection > expHeader ? nextSection : lines.length);
+    } catch (e) {
+      console.error('Error parsing main profile:', e);
+    }
 
-        let currentExp: { title: string; company: string; dateLine: string; descLines: string[] } | null = null;
-
+    // 2. Get Experiences
+    try {
+      await this.page.goto(`${cleanUrl}/details/experience/`, { waitUntil: 'domcontentloaded' });
+      await this.page.waitForTimeout(2000);
+      const expText = await this.page.evaluate(() => document.body.innerText);
+      const lines = expText.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+      
+      const startIdx = lines.findIndex(l => l === 'Experiência' || l === 'Experience');
+      if (startIdx >= 0) {
+        const expLines = lines.slice(startIdx + 1);
+        let currentExp: any = null;
         for (let i = 0; i < expLines.length; i++) {
-          const line = expLines[i];
-          const nextLine = expLines[i + 1] || '';
-          const nextNextLine = expLines[i + 2] || '';
-
+          const l = expLines[i];
+          if (l === 'Idioma do perfil' || l.includes('Profile language')) break; // End of list
+          
           if (!currentExp) {
-            if (line && !line.includes('·') && !line.startsWith('+') && line.length > 2) {
-              currentExp = { title: line, company: '', dateLine: '', descLines: [] };
-            }
+            if (l.length > 2 && !l.includes('·') && !l.startsWith('+')) currentExp = { title: l, company: '', dateLine: '', desc: [] };
             continue;
           }
-
-          if (!currentExp.company && !line.includes('·')) {
-            currentExp.company = line;
-            continue;
-          }
-
-          if (line.includes('·') && !currentExp.dateLine) {
-            currentExp.dateLine = line;
-            continue;
-          }
-
-          if (currentExp.dateLine && line && !line.includes('·') && !line.startsWith('+') && !line.includes('competência') && !line.includes('skill')) {
-            currentExp.descLines.push(line);
-          }
-
-          if (nextLine && !nextLine.includes('·') && nextLine.length > 2 && !nextLine.startsWith('+') &&
-              nextNextLine && !nextNextLine.includes('·') && nextNextLine.length > 2) {
-            const dateParts = currentExp.dateLine.split('·')[0].trim().split('–').map((s: string) => s.trim());
+          if (!currentExp.company && !l.includes('·')) { currentExp.company = l; continue; }
+          if (l.includes('·') && !currentExp.dateLine) { currentExp.dateLine = l; continue; }
+          if (currentExp.dateLine && !l.includes('·') && l.length > 2) currentExp.desc.push(l);
+          
+          const nextLine = expLines[i+1] || '';
+          if (nextLine && !nextLine.includes('·') && nextLine.length > 2 && !nextLine.startsWith('+') && expLines[i+2] && !expLines[i+2].includes('·')) {
+            const dates = currentExp.dateLine.split('·')[0].split('–').map((s: string) => s.trim());
             profile.experience.push({
               title: currentExp.title,
               company: currentExp.company,
-              startDate: dateParts[0] || '',
-              endDate: (dateParts[1] && dateParts[1] !== 'o momento' && dateParts[1] !== 'Present') ? dateParts[1] : null,
-              description: currentExp.descLines.join(' | '),
+              startDate: dates[0] || '',
+              endDate: dates[1] || null,
+              description: currentExp.desc.join(' | ')
             });
             currentExp = null;
           }
         }
-
         if (currentExp && currentExp.title) {
-          const dateParts = currentExp.dateLine.split('·')[0].trim().split('–').map((s: string) => s.trim());
-          profile.experience.push({
-            title: currentExp.title,
-            company: currentExp.company,
-            startDate: dateParts[0] || '',
-            endDate: (dateParts[1] && dateParts[1] !== 'o momento' && dateParts[1] !== 'Present') ? dateParts[1] : null,
-            description: currentExp.descLines.join(' | '),
-          });
+          const dates = currentExp.dateLine.split('·')[0].split('–').map((s: string) => s.trim());
+          profile.experience.push({ title: currentExp.title, company: currentExp.company, startDate: dates[0] || '', endDate: dates[1] || null, description: currentExp.desc.join(' | ') });
         }
       }
+    } catch (e) {}
 
-      const skillsIdx = lines.findIndex((l: string) => l === 'Competências' || l === 'Skills');
-      if (skillsIdx >= 0) {
-        const skillsEnd = lines.findIndex((l: string, i: number) =>
-          i > skillsIdx &&
-          ['Idiomas', 'Languages', 'Recomendações', 'Recommendations', 'Exibir tudo', 'Show all'].includes(l)
-        );
-        const skillsSlice = lines.slice(skillsIdx + 1, skillsEnd > skillsIdx ? skillsEnd : skillsIdx + 25);
-        profile.skills = skillsSlice
-          .filter((l: string) =>
-            l && !l.includes('·') && !l.includes('+') && !l.startsWith('Exibir') && !l.startsWith('Show') &&
-            !l.includes('Recomenda') && !l.includes('Recommend') && l.length > 1 && l.length < 50
-          )
-          .slice(0, 15);
+    // 3. Get Skills
+    try {
+      await this.page.goto(`${cleanUrl}/details/skills/`, { waitUntil: 'domcontentloaded' });
+      await this.page.waitForTimeout(2000);
+      const skillsText = await this.page.evaluate(() => document.body.innerText);
+      const lines = skillsText.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+      const startIdx = lines.findIndex(l => l === 'Competências' || l === 'Skills');
+      if (startIdx >= 0) {
+        const skillsLines = lines.slice(startIdx + 1);
+        for (const l of skillsLines) {
+          if (l === 'Idioma do perfil' || l.includes('Profile language')) break;
+          if (l && !l.includes('·') && !l.startsWith('+') && l.length > 1 && l.length < 50) {
+             if (!profile.skills.includes(l)) profile.skills.push(l);
+          }
+        }
       }
-    } catch (error) {
-      console.error('Error parsing profile:', error);
-    }
+    } catch (e) {}
 
     return profile;
   }

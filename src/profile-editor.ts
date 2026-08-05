@@ -370,6 +370,169 @@ export class ProfileEditor {
     }
   }
 
+  async updateLocationAndIndustry(country: string, city: string, industry: string): Promise<boolean> {
+    try {
+      const cleanUrl = this.profileUrl.replace(/\/$/, '');
+      await this.page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(4000);
+
+      const clicked = await this.page.evaluate(() => {
+        const editBtn = document.querySelector('button[aria-label*="introdução" i], button[aria-label*="intro" i], a[href*="edit/forms/intro"]');
+        if (editBtn) { (editBtn as any).click(); return true; }
+        const allBtns = document.querySelectorAll('button svg[data-test-icon="edit-small"]');
+        if (allBtns.length > 0) {
+          const btn = allBtns[0].closest('button');
+          if (btn) { btn.click(); return true; }
+        }
+        return false;
+      });
+
+      if (!clicked) return false;
+
+      await this.page.waitForSelector('dialog, div[role="dialog"]', { timeout: 10000 });
+      await this.page.waitForTimeout(2000);
+
+      if (industry) {
+        const industryInput = await this.page.$('input[aria-label*="Setor" i], input[aria-label*="Industry" i]');
+        if (industryInput) {
+          await industryInput.click();
+          await industryInput.fill('');
+          await this.page.keyboard.type(industry, { delay: 30 });
+          await this.page.waitForTimeout(1500);
+          await this.page.keyboard.press('ArrowDown');
+          await this.page.keyboard.press('Enter');
+        }
+      }
+
+      if (country) {
+        const countryInput = await this.page.$('input[aria-label*="País" i], input[aria-label*="Country" i]');
+        if (countryInput) {
+          await countryInput.click();
+          await countryInput.fill('');
+          await this.page.keyboard.type(country, { delay: 30 });
+          await this.page.waitForTimeout(1500);
+          await this.page.keyboard.press('ArrowDown');
+          await this.page.keyboard.press('Enter');
+          await this.page.waitForTimeout(1000);
+        }
+      }
+
+      if (city) {
+        const cityInput = await this.page.$('input[aria-label*="Cidade" i], input[aria-label*="City" i]');
+        if (cityInput) {
+          await cityInput.click();
+          await cityInput.fill('');
+          await this.page.keyboard.type(city, { delay: 30 });
+          await this.page.waitForTimeout(1500);
+          await this.page.keyboard.press('ArrowDown');
+          await this.page.keyboard.press('Enter');
+        }
+      }
+
+      const saveBtns = await this.page.$$('dialog button:has-text("Salvar"), dialog button:has-text("Save"), div[role="dialog"] button:has-text("Salvar")');
+      if (saveBtns.length > 0) {
+        await saveBtns[saveBtns.length - 1].click();
+      }
+
+      await this.page.waitForTimeout(3000);
+      return true;
+    } catch (e) {
+      console.error('Error updating location and industry', e);
+      return false;
+    }
+  }
+
+  async updateContactInfo(phone?: string, phoneType?: 'HOME'|'WORK'|'MOBILE', address?: string): Promise<boolean> {
+    try {
+      const cleanUrl = this.profileUrl.replace(/\/$/, '');
+      await this.page.goto(`${cleanUrl}/edit/forms/contact-info/new/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(4000);
+
+      await this.page.waitForSelector('dialog, div[role="dialog"]', { timeout: 10000 });
+      await this.page.waitForTimeout(2000);
+
+      if (phone !== undefined) {
+        const phoneInput = await this.page.$('input[aria-label*="telefone" i], input[aria-label*="phone" i], label:has-text("Número de telefone") + * input, label:has-text("Phone number") + * input');
+        if (phoneInput) {
+          await phoneInput.click();
+          await phoneInput.fill('');
+          await this.page.keyboard.type(phone, { delay: 30 });
+        }
+      }
+
+      if (phoneType !== undefined) {
+        const typeSelect = await this.page.$('select[aria-label*="Tipo de telefone" i], select[aria-label*="Phone type" i], label:has-text("Tipo de telefone") + * select, label:has-text("Phone type") + * select');
+        if (typeSelect) {
+          const typeValueMap: Record<string, string> = {
+            'HOME': 'ProfilePhoneNumberType_HOME',
+            'WORK': 'ProfilePhoneNumberType_WORK',
+            'MOBILE': 'ProfilePhoneNumberType_MOBILE'
+          };
+          const val = typeValueMap[phoneType] || 'ProfilePhoneNumberType_MOBILE';
+          await typeSelect.selectOption(val);
+        }
+      }
+
+      if (address !== undefined) {
+        const addressInput = await this.page.$('textarea[aria-label*="Endereço" i], textarea[aria-label*="Address" i], label:has-text("Endereço") + * textarea, label:has-text("Address") + * textarea');
+        if (addressInput) {
+          await addressInput.click();
+          await addressInput.fill('');
+          await this.page.keyboard.type(address, { delay: 30 });
+        }
+      }
+
+      // save
+      const saveBtns = await this.page.$$('dialog button:has-text("Salvar"), dialog button:has-text("Save"), div[role="dialog"] button:has-text("Salvar")');
+      if (saveBtns.length > 0) {
+        await saveBtns[saveBtns.length - 1].click();
+      }
+
+      await this.page.waitForTimeout(3000);
+      return true;
+    } catch (e) {
+      console.error('Error updating contact info', e);
+      return false;
+    }
+  }
+
+  async updateOpenToWork(visibility?: 'RECRUITERS' | 'LOGGED_IN_MEMBERS', startDate?: 'ACTIVELY_SEEKING' | 'CASUALLY_BROWSING'): Promise<boolean> {
+    try {
+      const cleanUrl = this.profileUrl.replace(/\/$/, '');
+      await this.page.goto(`${cleanUrl}/opportunities/job-opportunities/edit/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.page.waitForTimeout(4000);
+
+      await this.page.waitForSelector('dialog, div[role="dialog"]', { timeout: 10000 });
+      await this.page.waitForTimeout(2000);
+
+      if (visibility) {
+        // The radio input might be hidden by CSS, so we can try to click its label or force click
+        const radio = await this.page.$(`input[name="urn:li:fsd_openToWorkPreferencesFormElement:VISIBILITY"][value="${visibility}"]`);
+        if (radio) {
+          await radio.evaluate((el: any) => el.click());
+        }
+      }
+
+      if (startDate) {
+        const radio = await this.page.$(`input[name="urn:li:fsd_openToWorkPreferencesFormElement:START_DATE"][value="${startDate}"]`);
+        if (radio) {
+          await radio.evaluate((el: any) => el.click());
+        }
+      }
+
+      const saveBtns = await this.page.$$('dialog button:has-text("Salvar"), div[role="dialog"] button:has-text("Salvar"), dialog button:has-text("Save")');
+      if (saveBtns.length > 0) {
+        await saveBtns[saveBtns.length - 1].click();
+      }
+
+      await this.page.waitForTimeout(3000);
+      return true;
+    } catch (e) {
+      console.error('Error updating open to work', e);
+      return false;
+    }
+  }
+
   async publishPost(content: string): Promise<boolean> {
     try {
       await this.page.goto('https://www.linkedin.com/feed/', {
